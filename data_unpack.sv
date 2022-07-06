@@ -72,6 +72,66 @@ module data_unpack (
   output logic sop_out,
   output logic eop_out);
 
+  enum {IDLE, LD, INC, WAIT_IN, LD_FINAL} state, next_state;
 
+  logic data_rst, data_load, count_set, next_sop_out, eop_in_buf;
+  logic [4:0] count;
 
+  always_ff @(posedge clk) begin
+    if(rst) begin
+      state <= IDLE;
+      sop_out <= 1'b0;
+      eop_in_buf <= 1'b1;
+    end else begin
+      state <= next_state;
+      sop_out <= next_sop_out;
+      eop_in_buf <= data_load ? eop_in : eop_buf; //enable eop_in_buf load with data_load
+    end
+  end
+
+  always_comb @(*) begin
+    next_state = 'bx; //for debug, if missing next_state definition
+    {} = 'b0;
+
+    case(state)
+      IDLE: begin
+        if (sop_in) begin //transition out of IDLE on sop_in
+          next_state = INC;
+
+          next_sop_out = 1'b1; //assert sop for one cycle after the IDLE->INC transition
+        end else begin
+          next_state = IDLE;
+        end
+
+        count_set = 1'b1;
+        data_load = 1'b1;
+        ready_out = 1'b1;
+      end
+      LD: begin
+        next_state = INC; //load state is always one cycle then back to INC
+
+        //load data and assert ready for new data.
+        data_load = 1'b1;
+        ready_out = 1'b1;
+
+        valid_out = 1'b1; //data is still valid during load operation
+      end
+      INC: begin
+        //two cycles from overflowing, need to be in LD one cycle before count overflow
+        //if final word of packet go to LD_FINAL state
+        if (count >= 18) next_state = eop_in_buf ? LD_FINAL : LD;
+        else             next_state = INC;
+
+        valid_out = 1'b1;
+      end
+      LD_FINAL: begin
+        next_state = IDLE; //probably have to change this
+
+        data_rst = 1'b1;
+        data_load = 1'b1;
+
+        eop_out = 1'b1; //probably have to change this
+      end
+
+  end
 endmodule

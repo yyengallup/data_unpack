@@ -8,5 +8,15 @@ LD_FINAL - reset word register instead of loading to ensure zeros for final pack
 keep data_load asserted in idle state so no latency to first packet out when sop_in is asserted. More power consumption in idle?
 figure out count threshold to load new word on correct cycle. this is transition INC->LD
 threshold for count comparison can be LUT for speed increase if this is critical path in state machine.
+If need to wait for valid_in, need to check in INC state and keep ready_out asserted until valid_in detected, possibly transition to WAIT
+Count set to 6 and adresses offset down from there makes verilog code easier, but could be achieved in hardware with same complexity by starting count at 0.
 
-Could not register data_in. Would require trusting data_in, potential speed penalty if any delay in delivery of data_in. Would require different logic for zero bits on last packet out if necessary.
+Could not register data_in. Would require trusting data_in, potential speed penalty if any delay in delivery of data_in. Would require different logic for zero bits on last packet out if necessary. Would add additional cycles if word is not ready first cycle after requested.
+
+Possible errors:
+second sop_in before eop_in
+
+
+TODO
+register FSM outputs see article from scott. speed increase as no combinational state machine logic will add to critical path in datapath.
+fix timing of eop_out, probably have to add extra state.
