@@ -7,7 +7,7 @@ module data_unpack_datapath(
   input wire data_load, //load data word buffer and overflow buffer
   input wire count_set, //reset counter to 6
 
-  output logic [6:0] out, //packet output
+  output logic [6:0] data_out, //packet output
   output logic [4:0] count); //counter output for state machine transitions
 
   logic [-1:-6] data_overflow;
@@ -16,7 +16,7 @@ module data_unpack_datapath(
   logic [31:-6] all_data;
 
   assign all_data = {data_buf, data_overflow}; //for easy addressing
-  assign out = all_data[count:count-7]; //maybe bad syntax, otherwise assign each bit, but would make parameterisation harder
+  assign data_out = all_data[count:count-7]; //maybe bad syntax, otherwise assign each bit, but would make parameterisation harder
 
   //registers
   always_ff @posedge(clk) begin

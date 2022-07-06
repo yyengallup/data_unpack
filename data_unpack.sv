@@ -77,6 +77,8 @@ module data_unpack (
   logic data_rst, data_load, count_set, next_sop_out, eop_in_buf;
   logic [4:0] count;
 
+  data_unpack_datapath datapath(.*);
+
   always_ff @(posedge clk) begin
     if(rst) begin
       state <= IDLE;
