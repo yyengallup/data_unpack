@@ -1,0 +1,9 @@
+IDLE
+LD
+INC
+LD_FINAL - reset word register instead of loading to ensure zeros for final packet out if neccesary.
+
+
+keep data_load asserted in idle state so no latency to first packet out when sop_in is asserted. More power consumption in idle?
+figure out count threshold to load new word on correct cycle. this is transition INC->LD
+threshold for count comparison can be LUT for speed increase if this is critical path in state machine.
