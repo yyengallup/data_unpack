@@ -16,10 +16,10 @@ module data_unpack_datapath(
   logic [31:-6] all_data;
 
   assign all_data = {data_buf, data_overflow}; //for easy addressing
-  assign data_out = all_data[count:count-7]; //maybe bad syntax, otherwise assign each bit, but would make parameterisation harder
+  assign data_out = all_data[count-:7];
 
   //registers
-  always_ff @posedge(clk) begin
+  always_ff @(posedge clk) begin
     //overflow DFF with enable
     if (rst) data_overflow <= 6'b0;
     else     data_overflow <= data_load ? data_buf[31:26] : data_overflow;

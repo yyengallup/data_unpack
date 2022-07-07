@@ -72,7 +72,7 @@ module data_unpack (
   output logic sop_out,
   output logic eop_out);
 
-  enum {IDLE, LD, INC, WAIT_IN, LD_FINAL} state, next_state;
+  enum {IDLE, LD, INC, WAIT_IN, LD_FINAL, ERROR} state, next_state;
 
   logic data_rst, data_load, count_set, next_sop_out, eop_in_buf;
   logic [4:0] count;
@@ -87,12 +87,12 @@ module data_unpack (
     end else begin
       state <= next_state;
       sop_out <= next_sop_out;
-      eop_in_buf <= data_load ? eop_in : eop_buf; //enable eop_in_buf load with data_load
+      eop_in_buf <= data_load ? eop_in : eop_in_buf; //enable eop_in_buf load with data_load
     end
   end
 
-  always_comb @(*) begin
-    next_state = 'bx; //for debug, if missing next_state definition
+  always_comb begin
+    next_state = ERROR; //for debug, if missing next_state definition
     {} = 'b0;
 
     case(state)
@@ -134,6 +134,6 @@ module data_unpack (
 
         eop_out = 1'b1; //probably have to change this
       end
-
+    endcase
   end
 endmodule
