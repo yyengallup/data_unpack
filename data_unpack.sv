@@ -72,7 +72,7 @@ module data_unpack (
   output logic sop_out,
   output logic eop_out);
 
-  enum {IDLE, SOP, LD, INC, WAIT_IN, LD_FINAL, EOP, ERROR} state, next_state;
+  enum {IDLE, SOP, LD, INC, WAIT, LD_FINAL, EOP, ERROR} state, next_state;
 
   logic data_rst, data_load, data_overflow_load, count_set, eop_in_buf;
   logic [4:0] count;
