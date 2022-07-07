@@ -93,7 +93,7 @@ module data_unpack (
 
   always_comb begin
     next_state = ERROR; //for debug, if missing next_state definition
-    {} = 'b0;
+    {next_sop_out, count_set, data_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
 
     case(state)
       IDLE: begin
@@ -127,12 +127,16 @@ module data_unpack (
         valid_out = 1'b1;
       end
       LD_FINAL: begin
-        next_state = IDLE; //probably have to change this
+        if (count < 31 && count > 24) begin //this can be LUT for speed
+          next_state = LD_FINAL;
+        end else begin
+          next_state = IDLE;
+          eop_out = 1'b1; //only eop_out if actually the last packet
+        end
 
         data_rst = 1'b1;
         data_load = 1'b1;
-
-        eop_out = 1'b1; //probably have to change this
+        valid_out = 1'b1;
       end
     endcase
   end
