@@ -74,7 +74,7 @@ module data_unpack (
 
   enum {IDLE, SOP, LD, INC, WAIT_IN, LD_FINAL, EOP, ERROR} state, next_state;
 
-  logic data_rst, data_load, count_set, next_sop_out, eop_in_buf;
+  logic data_rst, data_load, data_overflow_load, count_set, eop_in_buf;
   logic [4:0] count;
 
   data_unpack_datapath datapath(.*);
@@ -82,22 +82,20 @@ module data_unpack (
   always_ff @(posedge clk) begin
     if(rst) begin
       state <= IDLE;
-      sop_out <= 1'b0;
       eop_in_buf <= 1'b1;
     end else begin
       state <= next_state;
-      sop_out <= next_sop_out;
       eop_in_buf <= data_load ? eop_in : eop_in_buf; //enable eop_in_buf load with data_load
     end
   end
 
   always_comb begin
     next_state = ERROR; //for debug, if missing next_state definition
-    {next_sop_out, count_set, data_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
+    {sop_out, count_set, data_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
 
     case(state)
       IDLE: begin
-        if (sop_in) next_state = SOP;//transition out of IDLE on sop_in
+        if (sop_in & valid_in) next_state = SOP;//transition out of IDLE on sop_in
         else        next_state = IDLE;
 
         count_set = 1'b1;
@@ -108,15 +106,26 @@ module data_unpack (
         next_state = INC;
 
         valid_out = 1'b1;
+        sop_out = 1'b1;
       end
       LD: begin
-        next_state = INC; //load state is always one cycle then back to INC
+        if (valid_in) next_state = INC; //load state is always one cycle then back to INC
+        else          next_state = WAIT;
 
         //load data and assert ready for new data.
         data_load = 1'b1;
+        data_overflow_load = 1'b1;
         ready_out = 1'b1;
 
         valid_out = 1'b1; //data is still valid during load operation
+      end
+      WAIT: begin
+        if (valid_in) next_state = INC;
+        else          next_state = WAIT;
+
+        data_load = 1'b1;//only load main data register, not overflow
+        ready_out = 1'b1;
+        //data is not valid while waiting
       end
       INC: begin
         //two cycles from overflowing, need to be in LD one cycle before count overflow
@@ -131,12 +140,19 @@ module data_unpack (
         next_state = EOP;
 
         data_rst = 1'b1;
-        data_load = 1'b1;
+        data_overflow_load = 1'b1; //only care about loading overflow data, main data is reset
         valid_out = 1'b1;
       end
       EOP: begin
+        if (sop_in & valid_in) next_state = SOP; //if next packet is ready jump straight in
+        else        next_state = IDLE;
+
         eop_out = 1'b1;
         valid_out = 1'b1;
+
+        count_set = 1'b1; //reset count in case we go directly into next packet
+        data_load = 1'b1;
+        ready_out = 1'b1;
       end
     endcase
   end

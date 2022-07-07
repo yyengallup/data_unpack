@@ -4,7 +4,8 @@ module data_unpack_datapath(
 
   input wire [31:0] data_in, //32 bit word line in
   input wire data_rst, //reset data word buffer
-  input wire data_load, //load data word buffer and overflow buffer
+  input wire data_load, //load data word buffer
+  input wire data_overflow_load, //load data into overflow buffer from main data buffer
   input wire count_set, //reset counter to 6
 
   output logic [6:0] data_out, //packet output
@@ -22,7 +23,7 @@ module data_unpack_datapath(
   always_ff @(posedge clk) begin
     //overflow DFF with enable
     if (rst) data_overflow <= 6'b0;
-    else     data_overflow <= data_load ? data_buf[31:26] : data_overflow;
+    else     data_overflow <= data_overflow_load ? data_buf[31:26] : data_overflow;
 
     //data buffer DFF with enable
     if (rst | data_rst) data_buf <= 32'b0;
