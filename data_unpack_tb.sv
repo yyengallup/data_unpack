@@ -43,7 +43,7 @@ module data_unpack_tb();
   end
 
   always @(posedge clk) begin
-    if (test_num == 10) $stop;
+    if (test_num == 15) $stop;
   end
 
 

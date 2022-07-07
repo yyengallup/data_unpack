@@ -72,7 +72,7 @@ module data_unpack (
   output logic sop_out,
   output logic eop_out);
 
-  enum {IDLE, LD, INC, WAIT_IN, LD_FINAL, ERROR} state, next_state;
+  enum {IDLE, SOP, LD, INC, WAIT_IN, LD_FINAL, EOP, ERROR} state, next_state;
 
   logic data_rst, data_load, count_set, next_sop_out, eop_in_buf;
   logic [4:0] count;
@@ -97,17 +97,17 @@ module data_unpack (
 
     case(state)
       IDLE: begin
-        if (sop_in) begin //transition out of IDLE on sop_in
-          next_state = INC;
-
-          next_sop_out = 1'b1; //assert sop for one cycle after the IDLE->INC transition
-        end else begin
-          next_state = IDLE;
-        end
+        if (sop_in) next_state = SOP;//transition out of IDLE on sop_in
+        else        next_state = IDLE;
 
         count_set = 1'b1;
         data_load = 1'b1;
         ready_out = 1'b1;
+      end
+      SOP: begin
+        next_state = INC;
+
+        valid_out = 1'b1;
       end
       LD: begin
         next_state = INC; //load state is always one cycle then back to INC
@@ -120,22 +120,22 @@ module data_unpack (
       end
       INC: begin
         //two cycles from overflowing, need to be in LD one cycle before count overflow
-        //if final word of packet go to LD_FINAL state
-        if (count >= 18) next_state = eop_in_buf ? LD_FINAL : LD;
+        //if final word of packet and packets aligned go to EOP otherwise go to LD_FINAL first to fill 0's in MSB's
+        //this comparison can be LUT for speed, 7 values of interest, plus check eop_in_buf for 14 possible values
+        if (count >= 18) next_state = eop_in_buf ? (count == 24 ? EOP : LD_FINAL) : LD;
         else             next_state = INC;
 
         valid_out = 1'b1;
       end
       LD_FINAL: begin
-        if (count < 31 && count > 24) begin //this can be LUT for speed
-          next_state = LD_FINAL;
-        end else begin
-          next_state = IDLE;
-          eop_out = 1'b1; //only eop_out if actually the last packet
-        end
+        next_state = EOP;
 
         data_rst = 1'b1;
         data_load = 1'b1;
+        valid_out = 1'b1;
+      end
+      EOP: begin
+        eop_out = 1'b1;
         valid_out = 1'b1;
       end
     endcase
