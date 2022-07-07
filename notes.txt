@@ -15,8 +15,11 @@ Could not register data_in. Would require trusting data_in, potential speed pena
 
 Possible errors:
 second sop_in before eop_in
-
+simultaneous sop_in and eop_in
+miss a word if it is first cycle after reset
 
 TODO
 register FSM outputs see article from scott. speed increase as no combinational state machine logic will add to critical path in datapath.
 fix timing of eop_out, probably have to add extra state.
+parameterize for output packet width
+parameterize for input packet bit count
