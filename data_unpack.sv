@@ -74,7 +74,7 @@ module data_unpack (
 
   enum {IDLE, SOP, LD, INC, WAIT, LD_FINAL, EOP, ERROR} state, next_state;
 
-  logic data_rst, data_load, data_overflow_load, count_set, eop_in_buf;
+  logic data_rst, data_load, data_overflow_load, count_set, count_en, eop_in_buf;
   logic [4:0] count;
 
   data_unpack_datapath datapath(.*);
@@ -91,7 +91,8 @@ module data_unpack (
 
   always_comb begin
     next_state = ERROR; //for debug, if missing next_state definition
-    {sop_out, count_set, data_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
+    {sop_out, count_set, data_load, data_overflow_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
+    count_en = 'b1;
 
     case(state)
       IDLE: begin
@@ -125,6 +126,7 @@ module data_unpack (
 
         data_load = 1'b1;//only load main data register, not overflow
         ready_out = 1'b1;
+        count_en  = 1'b0; //stop counting while waiting
         //data is not valid while waiting
       end
       INC: begin

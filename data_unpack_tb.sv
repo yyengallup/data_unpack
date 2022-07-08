@@ -4,7 +4,7 @@ module data_unpack_tb();
   logic [6:0] test_num;
   logic [34:0] test_inputs [127:0]; //32 bit data in, sop_in, eop_in, valid_in
   logic [8:0] output_num;
-  logic [9:0] test_outputs [511:0];
+  logic [8:0] test_outputs [511:0];
 
   logic ready_out, valid_in, sop_in, eop_in;
   logic [31:0] data_in;
@@ -34,7 +34,7 @@ module data_unpack_tb();
     rst = 1'b1; #10
     rst = 1'b0;
     #10
-    test_num = 0;
+    {test_num, output_num} = 0;
   end
 
   always @(posedge clk) begin
@@ -42,20 +42,18 @@ module data_unpack_tb();
       if(ready_out) begin
         test_num = test_num + 1; //increment test number if ready out is asserted
       end
+
+      if (valid_out) begin
+        assert ({sop_out, eop_out, data_out} == test_outputs[output_num])
+        else $error("Incorrect output, packet #%d. Was %b should have been %b", output_num, {sop_out, eop_out, data_out}, test_outputs[output_num]);
+
+        output_num = output_num + 1;
+      end
     end
   end
 
   always_comb begin
-    if (test_num == 15) $stop;
-  end
-
-  always_comb begin
-    if (valid_out) begin
-      assert ({sop_out, eop_out, data_out} == test_outputs[output_num])
-        else $error("Incorrect output, packet #%d", output_num);
-
-      output_num = output_num + 1;
-    end
+    if (test_num == 30) $stop;
   end
 
 endmodule
