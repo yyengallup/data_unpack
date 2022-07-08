@@ -3,6 +3,8 @@ module data_unpack_tb();
   logic clk, rst;
   logic [6:0] test_num;
   logic [34:0] test_inputs [127:0]; //32 bit data in, sop_in, eop_in, valid_in
+  logic [8:0] output_num;
+  logic [9:0] test_outputs [511:0];
 
   logic ready_out, valid_in, sop_in, eop_in;
   logic [31:0] data_in;
@@ -24,7 +26,8 @@ module data_unpack_tb();
   initial begin
     clk = 1'b0;
 
-    $readmemb("data_unpack_testcases.mem", test_inputs);
+    $readmemb("data_unpack_test_inputs.mem", test_inputs);
+    $readmemb("data_unpack_test_outputs.mem", test_outputs);
 
     $monitor("[Test Case] #%d : %b", test_num, test_inputs[test_num]);
 
@@ -42,9 +45,17 @@ module data_unpack_tb();
     end
   end
 
-  always @(posedge clk) begin
+  always_comb begin
     if (test_num == 15) $stop;
   end
 
+  always_comb begin
+    if (valid_out) begin
+      assert ({sop_out, eop_out, data_out} == test_outputs[output_num])
+        else $error("Incorrect output, packet #%d", output_num);
+
+      output_num = output_num + 1;
+    end
+  end
 
 endmodule
