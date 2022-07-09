@@ -57,18 +57,23 @@
 // 7'b000_0000 0 0
 // 7'b111_1111 0 1
 //
-module data_unpack (
+module data_unpack #(
+  parameter DATA_BITWIDTH = 5,
+  parameter OUTPUT_SIZE = 7,
+
+  parameter DATA_SIZE = 2 ** DATA_BITWIDTH
+) (
   input wire clk,
   input wire rst,
 
   output logic ready_out, // Can be used to back pressure the input data stream
   input wire valid_in,
-  input wire [31:0] data_in,
+  input wire [DATA_SIZE - 1:0] data_in,
   input wire sop_in,
   input wire eop_in,
 
   output logic valid_out,
-  output logic [6:0] data_out,
+  output logic [OUTPUT_SIZE - 1:0] data_out,
   output logic sop_out,
   output logic eop_out
 );
@@ -76,20 +81,20 @@ module data_unpack (
   enum {IDLE, SOP, LD, INC, WAIT, LD_FINAL, EOP, ERROR} state, next_state;
 
   logic data_rst, data_load, data_overflow_load, count_set, count_en, eop_in_buf;
-  logic [4:0] count;
+  logic [DATA_BITWIDTH - 1:0] count;
 
-  data_unpack_datapath datapath(.*);
+  data_unpack_datapath #(DATA_BITWIDTH, OUTPUT_SIZE) datapath(.*);
+
 
   always_ff @(posedge clk) begin
     if(rst) begin
-      state <= IDLE;
+      state      <= IDLE;
       eop_in_buf <= 1'b1;
     end else begin
-      state <= next_state;
+      state      <= next_state;
       eop_in_buf <= data_load ? eop_in : eop_in_buf; //enable eop_in_buf load with data_load
     end
   end
-
 
 
   always_comb begin : state_logic
@@ -110,8 +115,8 @@ module data_unpack (
       //two cycles from overflowing, need to be in LD one cycle before count overflow
       //if final word of packet and packets aligned go to EOP otherwise go to LD_FINAL first to fill 0's in MSB's
       //this comparison can be LUT for speed, 7 values of interest, plus check eop_in_buf for 14 possible values
-      INC     : if (count >= 18) next_state = eop_in_buf ? (count == 24 ? EOP : LD_FINAL) : LD;
-                else             next_state = INC;
+      INC     : if (count >= DATA_SIZE - 2*OUTPUT_SIZE) next_state = eop_in_buf ? (count == DATA_SIZE - OUTPUT_SIZE - 1 ? EOP : LD_FINAL) : LD;
+                else                                    next_state = INC;
 
       LD_FINAL: next_state = EOP;
 
