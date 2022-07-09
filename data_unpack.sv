@@ -70,7 +70,8 @@ module data_unpack (
   output logic valid_out,
   output logic [6:0] data_out,
   output logic sop_out,
-  output logic eop_out);
+  output logic eop_out
+);
 
   enum {IDLE, SOP, LD, INC, WAIT, LD_FINAL, EOP, ERROR} state, next_state;
 
@@ -89,73 +90,88 @@ module data_unpack (
     end
   end
 
-  always_comb begin
+
+
+  always_comb begin : state_logic
     next_state = ERROR; //for debug, if missing next_state definition
-    {sop_out, count_set, data_load, data_overflow_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
-    count_en = 'b1;
 
     case(state)
-      IDLE: begin
-        if (sop_in & valid_in) next_state = SOP;//transition out of IDLE on sop_in
-        else        next_state = IDLE;
+      IDLE    : if (sop_in & valid_in) next_state = SOP;//transition out of IDLE on sop_in
+                else                   next_state = IDLE;
 
-        count_set = 1'b1;
-        data_load = 1'b1;
-        ready_out = 1'b1;
+      SOP     : next_state = INC;
+
+      LD      : if (valid_in) next_state = INC; //load state is always one cycle then back to INC
+                else          next_state = WAIT;
+
+      WAIT    : if (valid_in) next_state = INC;
+                else          next_state = WAIT;
+
+      //two cycles from overflowing, need to be in LD one cycle before count overflow
+      //if final word of packet and packets aligned go to EOP otherwise go to LD_FINAL first to fill 0's in MSB's
+      //this comparison can be LUT for speed, 7 values of interest, plus check eop_in_buf for 14 possible values
+      INC     : if (count >= 18) next_state = eop_in_buf ? (count == 24 ? EOP : LD_FINAL) : LD;
+                else             next_state = INC;
+
+      LD_FINAL: next_state = EOP;
+
+      EOP     : if (sop_in & valid_in) next_state = SOP; //if next packet is ready jump straight in
+                else                   next_state = IDLE;
+    endcase
+  end : state_logic
+
+
+
+  always_comb begin : output_logic
+    {sop_out, count_set, data_load, data_overflow_load, ready_out, valid_out, data_rst, eop_out} = 'b0;
+    count_en = 'b1; //default to always counting
+
+    case(state)
+      IDLE    : begin
+                count_set = 1'b1;
+                data_load = 1'b1;
+                ready_out = 1'b1;
       end
-      SOP: begin
-        next_state = INC;
 
-        valid_out = 1'b1;
-        sop_out = 1'b1;
+      SOP     : begin
+                valid_out = 1'b1;
+                sop_out   = 1'b1;
       end
-      LD: begin
-        if (valid_in) next_state = INC; //load state is always one cycle then back to INC
-        else          next_state = WAIT;
 
-        //load data and assert ready for new data.
-        data_load = 1'b1;
-        data_overflow_load = 1'b1;
-        ready_out = 1'b1;
+      LD      : begin
+                //load data and assert ready for new data.
+                data_load          = 1'b1;
+                data_overflow_load = 1'b1;
+                ready_out          = 1'b1;
 
-        valid_out = 1'b1; //data is still valid during load operation
+                valid_out = 1'b1; //data is still valid during load operation
       end
-      WAIT: begin
-        if (valid_in) next_state = INC;
-        else          next_state = WAIT;
 
-        data_load = 1'b1;//only load main data register, not overflow
-        ready_out = 1'b1;
-        count_en  = 1'b0; //stop counting while waiting
-        //data is not valid while waiting
+      WAIT    : begin
+                data_load = 1'b1;//only load main data register, not overflow
+                ready_out = 1'b1;
+                count_en  = 1'b0; //stop counting while waiting
+                //data is not valid while waiting
       end
-      INC: begin
-        //two cycles from overflowing, need to be in LD one cycle before count overflow
-        //if final word of packet and packets aligned go to EOP otherwise go to LD_FINAL first to fill 0's in MSB's
-        //this comparison can be LUT for speed, 7 values of interest, plus check eop_in_buf for 14 possible values
-        if (count >= 18) next_state = eop_in_buf ? (count == 24 ? EOP : LD_FINAL) : LD;
-        else             next_state = INC;
 
-        valid_out = 1'b1;
+      INC     : begin
+                valid_out = 1'b1;
       end
+
       LD_FINAL: begin
-        next_state = EOP;
-
-        data_rst = 1'b1;
-        data_overflow_load = 1'b1; //only care about loading overflow data, main data is reset
-        valid_out = 1'b1;
+                data_rst           = 1'b1;
+                data_overflow_load = 1'b1; //only care about loading overflow data, main data is reset
+                valid_out          = 1'b1;
       end
-      EOP: begin
-        if (sop_in & valid_in) next_state = SOP; //if next packet is ready jump straight in
-        else        next_state = IDLE;
 
-        eop_out = 1'b1;
-        valid_out = 1'b1;
+      EOP     : begin
+                eop_out   = 1'b1;
+                valid_out = 1'b1;
 
-        count_set = 1'b1; //reset count in case we go directly into next packet
-        data_load = 1'b1;
-        ready_out = 1'b1;
+                count_set = 1'b1; //reset count in case we go directly into next packet
+                data_load = 1'b1;
+                ready_out = 1'b1;
       end
     endcase
-  end
+  end : output_logic
 endmodule

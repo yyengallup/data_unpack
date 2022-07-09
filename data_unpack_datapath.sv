@@ -10,7 +10,9 @@ module data_unpack_datapath(
   input wire count_en, //enable counter
 
   output logic [6:0] data_out, //packet output
-  output logic [4:0] count); //counter output for state machine transitions
+  output logic [4:0] count //counter output for state machine transitions
+);
+
 
   logic [-1:-6] data_overflow;
   logic [31:0] data_buf;
